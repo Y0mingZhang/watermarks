@@ -32,7 +32,7 @@ def main():
 
     alias = os.path.basename(args.text_file).replace(".jsonl", "")
     df = pd.read_json(args.text_file, lines=True)
-    prefixes = df["prefix"]
+    prefixes = df["prompt"]
     completions = df["completion"]
 
     utf8_bytes = sum(len(s.encode("utf-8")) for s in completions)
