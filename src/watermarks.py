@@ -10,19 +10,15 @@ class Watermark:
     @abstractmethod
     def watermark(
         self, prev_tokens: list[int], logits: torch.FloatTensor
-    ) -> torch.FloatTensor:
-        # returns the watermarked probabilities (not logits!)
+    ) -> torch.LongTensor:
+        # selects the next token using watermark
         ...
 
 
-class Greedy(Watermark):
-    def watermark(self, prev_tokens: list[int], logits: torch.FloatTensor):
-        p = logits.softmax(-1)
-        return p.argmax(keepdim=True)
-
-
-class Sample(Watermark):
-    def watermark(self, prev_tokens: list[int], logits: torch.FloatTensor):
+class NoWatermark(Watermark):
+    def watermark(
+        self, prev_tokens: list[int], logits: torch.FloatTensor
+    ) -> torch.LongTensor:
         p = logits.softmax(-1)
         return torch.multinomial(p, 1)
 
@@ -41,7 +37,7 @@ class Aaronson(Watermark):
     def pseudorandom_uniform(self, prev_tokens: list[int]) -> torch.Tensor:
         rng = torch.Generator()
         rng.manual_seed(obj_to_hash(self.seed, prev_tokens))
-        return torch.rand((self.vocab_size,), generator=rng)
+        return torch.rand((self.vocab_size,), generator=rng, device="cpu")
 
     def get_r(
         self,
@@ -52,7 +48,7 @@ class Aaronson(Watermark):
 
     def watermark(
         self, prev_tokens: list[int], logits: torch.FloatTensor
-    ) -> torch.FloatTensor:
+    ) -> torch.LongTensor:
         p = logits.softmax(-1)
         r = self.get_r(prev_tokens).to(logits.device)
         watermarked_p = r.pow(1 / p)
@@ -68,7 +64,7 @@ class Kuditipudi(Watermark):
 
     def watermark(
         self, prev_tokens: list[int], logits: torch.FloatTensor
-    ) -> torch.FloatTensor:
+    ) -> torch.LongTensor:
         # NOTE: didn't implement shift since it has no effect on generation quality
 
         p = logits.softmax(-1)
@@ -87,7 +83,6 @@ class Kirchenbauer(Watermark):
         seed: int = 42,
     ):
         self.vocab_size = vocab_size
-        self.rng = torch.Generator()
         self.vocab_size = vocab_size
         self.n_grams = n_grams
         self.green_logit_bias = green_logit_bias
@@ -96,22 +91,22 @@ class Kirchenbauer(Watermark):
 
     def watermark(
         self, prev_tokens: list[int], logits: torch.FloatTensor
-    ) -> torch.FloatTensor:
+    ) -> torch.LongTensor:
         # generate a seed from previous tokens
         seed = obj_to_hash(self.seed, prev_tokens[-self.n_grams :])
-        self.rng.manual_seed(seed)
+        rng = torch.Generator("cuda")
+        rng.manual_seed(seed)
 
         # partition vocab into green-red lists
-        noise = torch.rand(self.vocab_size, generator=self.rng)
+        noise = torch.rand(self.vocab_size, generator=rng)
         green_mask = noise <= torch.kthvalue(noise, self.green_list_size).values
         logits[green_mask] += self.green_logit_bias
 
-        return logits.argmax(keepdim=True)
+        return torch.multinomial(logits.softmax(-1), 1)
 
 
 WATERMARKS: dict[str, type[Watermark]] = {
-    "greedy": Greedy,
-    "sample": Sample,
+    "none": NoWatermark,
     "aaronson": Aaronson,
     "kuditipudi": Kuditipudi,
     "kirchenbauer": Kirchenbauer,

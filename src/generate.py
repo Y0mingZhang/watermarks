@@ -21,7 +21,7 @@ def main():
     parser.add_argument("--model", type=str, default="gpt2")
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--max_new_tokens", type=int, default=256)
-    parser.add_argument("--watermark", choices=WATERMARKS.keys(), default="kuditipudi")
+    parser.add_argument("--watermark", choices=WATERMARKS.keys(), default="none")
     parser.add_argument("--prompt", default="data/pile-sample.jsonl")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--stopwords", choices=STOPWORDS.keys(), default="none")

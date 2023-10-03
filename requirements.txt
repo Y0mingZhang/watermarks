@@ -10,3 +10,4 @@ bitsandbytes
 scipy
 pandas
 datasets
+git+https://github.com/facebookresearch/llama.git
