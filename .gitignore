@@ -164,3 +164,4 @@ local_scripts/
 data/
 slurm*
 .vscode
+src/levenshtein.c*

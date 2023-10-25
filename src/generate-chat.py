@@ -259,7 +259,7 @@ def main():
         generations = llama.chat_completion(
             prompts,
             max_gen_len=args.max_new_tokens,
-            temperature=1.0,
+            temperature=1.2,
             top_p=1.0,
         )
         completions.extend([g["generation"] for g in generations])

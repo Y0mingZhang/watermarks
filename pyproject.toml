@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools", "Cython", "numpy"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "watermark"
+authors = [
+    {name = "Yiming Zhang", email = "yimingz3@cs.cmu.edu"},
+]
+readme = "README.md"
+version = "0.1.0"
+requires-python = "~=3.10"
+license = {text = "MIT"}
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = "requirements.txt"}
