@@ -243,7 +243,7 @@ def main():
         watermark_alg=watermark,
         ckpt_dir=CKPT_PATH + args.model,
         tokenizer_path=TOKENIZER_PATH,
-        max_seq_len=512,
+        max_seq_len=1200,
         max_batch_size=args.batch_size,
     )
 
@@ -259,7 +259,7 @@ def main():
         generations = llama.chat_completion(
             prompts,
             max_gen_len=args.max_new_tokens,
-            temperature=1.2,
+            temperature=1.0,
             top_p=1.0,
         )
         completions.extend([g["generation"] for g in generations])

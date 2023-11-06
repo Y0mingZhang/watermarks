@@ -25,6 +25,7 @@ def main():
     parser.add_argument("--prompt", default="data/pile-sample.jsonl")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--stopwords", choices=STOPWORDS.keys(), default="none")
+    parser.add_argument("--disable_eos", action="store_true")
     args = parser.parse_args()
 
     torch.backends.cuda.matmul.allow_tf32 = True
@@ -72,6 +73,9 @@ def main():
             outputs = model(**inputs)
             logits = outputs.logits[..., :vocab_size]
             past_key_values = outputs.past_key_values
+
+            if args.disable_eos:
+                logits[:, :, tokenizer.eos_token_id] = -100
 
             next_tokens = torch.stack(
                 [

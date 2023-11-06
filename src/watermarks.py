@@ -105,7 +105,7 @@ class Kuditipudi(Watermark):
         xi = self.xi.numpy().astype(np.float32)
         test_result = self.test_statistic(tokens_np, xi)
         p_val = 0
-        tpe = ProcessPoolExecutor(28)
+        tpe = ProcessPoolExecutor(15)
         xi_alts = [
             np.random.rand(*self.xi.shape).astype(np.float32) for i in range(n_runs)
         ]
