@@ -10,9 +10,9 @@ from transformers import (
 def init_model(model_name: str) -> tuple[PreTrainedTokenizer, PreTrainedModel]:
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
-
+    
     model = AutoModelForCausalLM.from_pretrained(
-        model_name, device_map="auto", torch_dtype="auto", load_in_8bit=True
+        model_name, device_map="auto", torch_dtype=torch.bfloat16, load_in_8bit=True
     )
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer.padding_side = "left"

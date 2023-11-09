@@ -13,6 +13,12 @@ STOPWORDS = {
     "none": [],
 }
 
+CHAT_TEMPLATES = {
+    "vicuna": "{% if messages[0]['role'] == 'system' %}{% set loop_messages = messages[1:] %}{% set system_message = messages[0]['content'] %}{% else %}{% set loop_messages = messages %}{% set system_message = 'A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user\\'s questions.' %}{% endif %}{% for message in loop_messages %}{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}{% endif %}{% if loop.index0 == 0 %}{{ system_message }}{% endif %}{% if message['role'] == 'user' %}{{ ' USER: ' + message['content'].strip() }}{% elif message['role'] == 'assistant' %}{{ ' ASSISTANT: ' + message['content'].strip() + eos_token }}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ ' ASSISTANT:' }}{% endif %}",
+    "": None,
+}
+
+
 
 @torch.inference_mode()
 def main():
@@ -26,12 +32,14 @@ def main():
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--stopwords", choices=STOPWORDS.keys(), default="none")
     parser.add_argument("--disable_eos", action="store_true")
+    parser.add_argument("--chat_template", choices=CHAT_TEMPLATES.keys(), default="")
     args = parser.parse_args()
 
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
 
     stopwords = STOPWORDS[args.stopwords]
+    chat_template = CHAT_TEMPLATES[args.chat_template]
 
     tokenizer, model = init_model(args.model)
     config = AutoConfig.from_pretrained(args.model)
@@ -51,9 +59,19 @@ def main():
     watermark_alg = WATERMARKS[args.watermark](vocab_size=vocab_size)
     for sample_idx in trange(0, len(prefix_all), args.batch_size):
         prefixes = prefix_all[sample_idx : sample_idx + args.batch_size]
-        encoded = dict_to_device(
-            tokenizer(prefixes, padding=True, return_tensors="pt"), model.device
-        )
+
+        if isinstance(prefixes[0], list):
+            prefixes_chat = [
+                tokenizer.apply_chat_template(p, tokenize=False, chat_template=chat_template, add_generation_prompt=True)
+                for p in prefixes
+            ]
+            encoded = dict_to_device(tokenizer(prefixes_chat, padding=True, return_tensors="pt", add_special_tokens=False), model.device)
+        
+        else:
+            assert isinstance(prefixes[0], str)
+            encoded = dict_to_device(
+                tokenizer(prefixes, padding=True, return_tensors="pt"), model.device
+            )
 
         input_ids = encoded["input_ids"]
         attention_mask = encoded["attention_mask"]
@@ -75,6 +93,7 @@ def main():
             past_key_values = outputs.past_key_values
 
             if args.disable_eos:
+                assert tokenizer.eos_token_id is not None
                 logits[:, :, tokenizer.eos_token_id] = -100
 
             next_tokens = torch.stack(
